@@ -11,7 +11,7 @@
     owner: root
     group: root
     mode: '0755'
-  with_items: '{{ secrets.shares }}'
+  loop: '{{ secrets.shares }}'
 
 - name: Mount nfs shares to directories
   ansible.posix.mount:
@@ -20,4 +20,4 @@
     opts: defaults
     state: mounted
     fstype: nfs
-  with_items: '{{ secrets.shares }}'
+  loop: '{{ secrets.shares }}'
