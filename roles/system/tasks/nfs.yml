@@ -1,7 +1,10 @@
 ---
+- name: Include OS-specific variables.
+  ansible.builtin.include_vars: '{{ ansible_os_family }}.yml'
+
 - name: Ensure nfs requirements are installed
-  ansible.builtin.apt:
-    name: nfs-common
+  ansible.builtin.package:
+    name: '{{ system_packages }}'
     state: present
 
 - name: Ensure mount directories exist
