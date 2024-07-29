@@ -1,4 +1,6 @@
 ---
-- include_tasks: essential.yml
-- include_tasks: nfs.yml
+- ansible.builtin.import_tasks: essential.yml
+
+
+- ansible.builtin.include_tasks: nfs.yml
   when: nfs_enabled
