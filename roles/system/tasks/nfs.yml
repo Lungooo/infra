@@ -1,0 +1,23 @@
+---
+- name: Ensure nfs requirements are installed
+  ansible.builtin.apt:
+    name: nfs-common
+    state: present
+
+- name: Ensure mount directories exist
+  ansible.builtin.file:
+    path: '/nfs/{{ item }}'
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  with_items: '{{ secrets.shares }}'
+
+- name: Mount nfs shares to directories
+  ansible.posix.mount:
+    src: '{{ secrets.networks.lan.base }}.10:/volume1/{{ item }}'
+    path: '/nfs/{{ item }}'
+    opts: defaults
+    state: mounted
+    fstype: nfs
+  with_items: '{{ secrets.shares }}'
