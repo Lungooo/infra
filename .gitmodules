@@ -1,0 +1,6 @@
+[submodule "inventory"]
+	path = inventory
+	url = git@github.com:Lungooo/infra_inventory.git
+[submodule "secrets"]
+	path = secrets
+	url = git@github.com:Lungooo/infra_secrets.git

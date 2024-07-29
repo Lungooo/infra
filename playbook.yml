@@ -1,0 +1,21 @@
+---
+- name: Main Playbook
+  hosts: testing
+  become: true
+
+  roles:
+    - role: system
+      tags:
+        - system
+
+    - role: geerlingguy.security
+      tags:
+        - security
+
+    - role: geerlingguy.firewall
+      tags:
+        - security
+
+    - role: podman
+      tags:
+        - podman

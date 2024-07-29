@@ -1,0 +1,20 @@
+timezone: Europe/Berlin
+
+#
+# SSH (geerlingguy.security)
+#
+security_sudoers_passwordless: ['ladmin']
+
+security_autoupdate_reboot: true
+
+security_autoupdate_reboot_time: '03:00'
+
+security_fail2ban_enabled: false
+
+#
+# SSH (geerlingguy.security)
+#
+firewall_allowed_tcp_ports:
+  - '22'
+  - '80'
+  - '443'
