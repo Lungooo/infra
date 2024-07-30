@@ -1,0 +1,69 @@
+---
+- name: Set container variables
+  ansible.builtin.set_fact:
+    container_user: '{{ secrets.users.actual.name }}'
+    container_name: actual
+
+- name: Determine if directories needed by actual exist
+  ansible.builtin.stat:
+    path: '{{ service_config_root }}/{{ container_name }}/data'
+  register: path
+
+- name: Create directories if they do not exist
+  ansible.builtin.file:
+    path: '{{ service_config_root }}/{{ item }}'
+    owner: '{{ container_user }}'
+    group: '{{ container_user }}'
+    mode: '0755'
+    recurse: false
+    state: directory
+  loop:
+    - '{{ container_name }}'
+    - '{{ container_name }}/data'
+  when: not path.stat.exists
+
+- name: Create actual container
+  become: true
+  become_user: '{{ container_user }}'
+  containers.podman.podman_container:
+    name: '{{ container_name }}'
+    image: ghcr.io/actualbudget/actual-server
+    image_strict: true
+    rm: true
+    userns: auto
+    publish:
+      - '127.0.0.1:5006:5006'
+    volume:
+      - '{{ service_config_root }}/{{ container_name }}/data:/data:U'
+    label:
+      io.containers.autoupdate: registry
+    # TODO: Switch to Quadlet as soon as podman is >= 4.4 on debian 12
+    #
+    # quadlet_options:
+    #   - 'AutoUpdate=registry'
+    #   - 'Pull=true'
+    #   - |
+    #     [Install]
+    #     WantedBy=default.target
+    state: created
+
+- name: Generate systemd unit file for actual container
+  become: true
+  become_user: '{{ container_user }}'
+  containers.podman.podman_generate_systemd:
+    name: '{{ container_name }}'
+    new: true
+    no_header: true
+    restart_sec: 10
+    restart_policy: always
+    dest: '~/.config/systemd/user'
+
+- name: Ensure actual container is started and enabled
+  become: true
+  become_user: '{{ container_user }}'
+  ansible.builtin.systemd:
+    name: 'container-{{ container_name }}'
+    daemon_reload: true
+    state: started
+    scope: user
+    enabled: true

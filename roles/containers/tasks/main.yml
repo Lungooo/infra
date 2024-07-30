@@ -1,0 +1,16 @@
+---
+- name: Ensure service config root dir exists
+  ansible.builtin.file:
+    path: '{{ service_config_root }}'
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- ansible.builtin.import_tasks: users.yml
+
+- ansible.builtin.include_tasks: actual.yml
+  when: '"actual" in services'
+
+- ansible.builtin.include_tasks: jellyseerr.yml
+  when: '"jellyseerr" in services'

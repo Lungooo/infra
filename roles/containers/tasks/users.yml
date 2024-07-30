@@ -1,0 +1,28 @@
+---
+- name: Create groups needed for users
+  ansible.builtin.group:
+    name: '{{ item.value.name }}'
+    gid: '{{ item.value.gid }}'
+    state: present
+  loop: '{{ secrets.users | dict2items }}'
+  when:
+    - item.value.gid | int != 100
+    - item.key | string in services
+
+- name: Create users for services
+  ansible.builtin.user:
+    name: '{{ item.value.name }}'
+    password: !
+    uid: '{{ item.value.uid }}'
+    group: '{{ item.value.gid }}'
+    shell: /bin/nologin
+    state: present
+  loop: '{{ secrets.users | dict2items }}'
+  when: item.key | string in services
+
+- name: Enable lingering for users
+  ansible.builtin.command:
+    cmd: 'loginctl enable-linger {{ item.value.name }}'
+    creates: '/var/lib/systemd/linger/{{ item.value.name }}'
+  loop: '{{ secrets.users | dict2items }}'
+  when: item.key | string in services

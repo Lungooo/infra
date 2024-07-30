@@ -1,0 +1,72 @@
+---
+- name: Set container variables
+  ansible.builtin.set_fact:
+    container_user: '{{ secrets.users.jellyseerr.name }}'
+    container_name: jellyseerr
+
+- name: Determine if directories needed by jellyseerr exist
+  ansible.builtin.stat:
+    path: '{{ service_config_root }}/{{ container_name }}/config'
+  register: path
+
+- name: Create directories if they do not exist
+  ansible.builtin.file:
+    path: '{{ service_config_root }}/{{ item }}'
+    owner: '{{ container_user }}'
+    group: '{{ container_user }}'
+    mode: '0755'
+    recurse: false
+    state: directory
+  loop:
+    - '{{ container_name }}'
+    - '{{ container_name }}/config'
+  when: not path.stat.exists
+
+- name: Create jellyseerr container
+  become: true
+  become_user: '{{ container_user }}'
+  containers.podman.podman_container:
+    name: '{{ container_name }}'
+    image: docker.io/fallenbagel/jellyseerr
+    image_strict: true
+    rm: true
+    userns: auto
+    publish:
+      - '127.0.0.1:5055:5055'
+    volume:
+      - '{{ service_config_root }}/{{ container_name }}/config:/app/config:U'
+    env:
+      LOG_LEVEL: debug
+      TZ: '{{ timezone }}'
+    label:
+      io.containers.autoupdate: registry
+    # TODO: Switch to Quadlet as soon as podman is >= 4.4 on debian 12
+    #
+    # quadlet_options:
+    #   - 'AutoUpdate=registry'
+    #   - 'Pull=true'
+    #   - |
+    #     [Install]
+    #     WantedBy=default.target
+    state: created
+
+- name: Generate systemd unit file for jellyseerr container
+  become: true
+  become_user: '{{ container_user }}'
+  containers.podman.podman_generate_systemd:
+    name: '{{ container_name }}'
+    new: true
+    no_header: true
+    restart_sec: 10
+    restart_policy: always
+    dest: '~/.config/systemd/user'
+
+- name: Ensure jellyseerr container is started and enabled
+  become: true
+  become_user: '{{ container_user }}'
+  ansible.builtin.systemd:
+    name: 'container-{{ container_name }}'
+    daemon_reload: true
+    state: started
+    scope: user
+    enabled: true
