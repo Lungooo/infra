@@ -12,7 +12,6 @@
     state: latest
     update_cache: true
     update_only: true
-    autoremove: true
   when: ansible_os_family == 'RedHat'
 
 - name: Autoremove unneeded packages installed as dependencies
@@ -32,3 +31,16 @@
   when:
     - reboot_required_file.stat.exists
     - ansible_os_family == 'Debian'
+
+- name: Set the hostname
+  ansible.builtin.hostname:
+    name: '{{ hostname }}'
+
+- name: Replace the hostname entry with our own
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    insertafter: ^127\.0\.0\.1 *localhost
+    line: '127.0.0.1 {{ hostname }}'
+    owner: root
+    group: root
+    mode: '0644'
