@@ -41,11 +41,13 @@
     #
     # quadlet_options:
     #   - 'AutoUpdate=registry'
-    #   - 'Pull=true'
     #   - |
     #     [Install]
     #     WantedBy=default.target
+    # quadlet_filename: 'container-{{ container_name }}'
+    # state: quadlet
     state: created
+  when: ansible_os_family == 'Debian'
 
 - name: Generate systemd unit file for actual container
   become: true
@@ -57,13 +59,40 @@
     restart_sec: 10
     restart_policy: always
     dest: '~/.config/systemd/user'
+  when: ansible_os_family == 'Debian'
+
+- name: Create actual container Quadlet
+  become: true
+  become_user: '{{ container_user }}'
+  containers.podman.podman_container:
+    name: '{{ container_name }}'
+    image: ghcr.io/actualbudget/actual-server
+    image_strict: true
+    userns: auto
+    publish:
+      - '127.0.0.1:5006:5006'
+    volume:
+      - '{{ service_config_root }}/{{ container_name }}/data:/data:Z,U'
+    quadlet_options:
+      - 'AutoUpdate=registry'
+      - |
+        [Install]
+        WantedBy=default.target
+    quadlet_filename: 'container-{{ container_name }}'
+    state: quadlet
+  register: quadlet
+  when: ansible_os_family == 'RedHat'
+
+- name: Set restart on change
+  ansible.builtin.set_fact:
+    container_state: '{{ (quadlet.changed | default(false)) | ternary("restarted", "started") }}'
 
 - name: Ensure actual container is started and enabled
   become: true
   become_user: '{{ container_user }}'
-  ansible.builtin.systemd:
+  ansible.builtin.systemd_service:
     name: 'container-{{ container_name }}'
     daemon_reload: true
-    state: started
+    state: '{{ container_state }}'
     scope: user
     enabled: true
