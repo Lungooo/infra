@@ -9,6 +9,10 @@ security_autoupdate_reboot: true
 
 security_autoupdate_reboot_time: '03:00'
 
+security_autoupdate_mail_to: 'notify'
+
+security_autoupdate_mail_on_error: false
+
 security_fail2ban_enabled: false
 
 #

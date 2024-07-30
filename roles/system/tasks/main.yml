@@ -1,6 +1,8 @@
 ---
 - ansible.builtin.import_tasks: essential.yml
 
+- ansible.builtin.include_tasks: notifications.yml
+  when: ansible_os_family == 'Debian'
 
 - ansible.builtin.include_tasks: nfs.yml
   when: nfs_enabled
