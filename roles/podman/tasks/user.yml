@@ -1,21 +1,4 @@
 ---
-- name: Create container user
-  ansible.builtin.user:
-    name: '{{ secrets.users.container.name }}'
-    password: !
-    uid: '{{ secrets.users.container.uid }}'
-    group: users
-    shell: /bin/nologin
-    groups:
-      - users
-    state: present
-    append: true
-
-- name: Enable lingering for container user
-  ansible.builtin.command:
-    cmd: 'loginctl enable-linger {{ secrets.users.container.name }}'
-    creates: '/var/lib/systemd/linger/{{ secrets.users.container.name }}'
-
 - name: Add entry to subuid file
   ansible.builtin.lineinfile:
     path: /etc/subuid

@@ -19,3 +19,9 @@
     - role: podman
       tags:
         - podman
+      when: services is defined
+
+    - role: containers
+      tags:
+        - containers
+      when: services is defined
