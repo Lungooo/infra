@@ -1,0 +1,41 @@
+---
+- name: Ensure postfix and curl are installed
+  ansible.builtin.apt:
+    name:
+      - postfix
+      - curl
+    state: present
+
+- name: Ensure notification user exists
+  ansible.builtin.user:
+    name: notify
+    password: !
+    shell: /bin/nologin
+    system: true
+    state: present
+
+- name: Add entry to /etc/aliases
+  ansible.builtin.lineinfile:
+    dest: /etc/aliases
+    regexp: '^notify:'
+    line: 'notify: "|/home/notify/bin/notify.sh"'
+    state: present
+    create: true
+    mode: '0644'
+  notify: Update aliases database
+
+- name: Create directory /home/notify/bin
+  ansible.builtin.file:
+    path: /home/notify/bin
+    state: directory
+    owner: nobody
+    group: nogroup
+    mode: '0750'
+
+- name: Copy notify script to host
+  ansible.builtin.template:
+    src: ntfy.j2
+    dest: /home/notify/bin/notify.sh
+    owner: nobody
+    group: nogroup
+    mode: '0770'

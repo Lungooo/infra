@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# ntfy Message
+FULL_MESSAGE=$1
+MESSAGE=$(sed -n -e '7'p -e '16,19'p $1)
+
+# ntfy url
+NTFY_URL="{{ secrets.ntfy.url }}"
+
+# POST request to ntfy url with subject from unattended-upgrade notification
+
+curl $NTFY_URL \
+  -H "Authorization: Bearer {{ secrets.ntfy.token }}" \
+  -H "Content-Type: application/json" \
+-d '{
+    "topic": "Debian",
+    "message": "'"$FULL_MESSAGE"'",
+    "title": "'"$MESSSAGE"'",
+    "tags": ["warning"],
+    "priority": 4
+}'
