@@ -1,0 +1,26 @@
+---
+- name: Get a list of all running containers on System
+  hosts: testing
+  become: true
+
+  tasks:
+    - name: Get list of users
+      ansible.builtin.set_fact:
+        users: '{{ users + [item.value.name] }}'
+      loop: '{{ secrets.users | dict2items }}'
+      vars:
+        users: []
+      when: 'item.key | string in services'
+
+    - name: Get all running containers
+      ansible.builtin.command: 'systemd-run --machine={{ item }}@ --quiet --user --collect --pipe --wait podman container ps --all'
+      register: containers
+      loop: '{{ users }}'
+      changed_when: true
+
+    - name: Show all running containers
+      ansible.builtin.debug:
+        msg: '{{ item.stdout_lines }}'
+      loop: '{{ containers.results }}'
+      loop_control:
+        label: '{{ item.item }}'
