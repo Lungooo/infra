@@ -1,0 +1,12 @@
+http:
+  routers:
+    actual:
+      rule: 'Host(`actual-budget.{{ domain }}`)'
+      service: actual
+      entrypoints: 'websecure'
+
+  services:
+    actual:
+      loadBalancer:
+        servers:
+          - url: http://{{ secrets.networks.lan.base }}.1:5006/
