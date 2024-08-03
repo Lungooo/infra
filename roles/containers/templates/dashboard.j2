@@ -1,0 +1,6 @@
+http:
+  routers:
+    api:
+      rule: 'Host(`{{ domain }}`)'
+      service: api@internal
+      entrypoints: 'websecure'

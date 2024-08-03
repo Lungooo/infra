@@ -1,0 +1,8 @@
+#
+# NFS
+#
+nfs_enabled: true
+
+ca_server: https://acme-v02.api.letsencrypt.org/directory
+
+domain: prod.home.lungoo.de

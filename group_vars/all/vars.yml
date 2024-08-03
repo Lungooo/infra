@@ -7,6 +7,7 @@ service_config_root: /opt/services
 services:
   - actual
   - jellyseerr
+  - traefik
 
 #
 # NFS
@@ -33,5 +34,13 @@ security_fail2ban_enabled: false
 #
 firewall_allowed_tcp_ports:
   - '22'
-  - '80'
-  - '443'
+  - '8080'
+  - '8443'
+
+firewall_forwarded_tcp_ports:
+  - { src: '80', dest: '8080' }
+  - { src: '443', dest: '8443' }
+
+firewall_disable_firewalld: true
+
+firewall_disable_ufw: true

@@ -1,0 +1,166 @@
+---
+- name: Set container variables
+  ansible.builtin.set_fact:
+    container_user: '{{ secrets.users.traefik.name }}'
+    container_name: traefik
+
+- name: Determine if directories needed by traefik exist
+  ansible.builtin.stat:
+    path: '{{ service_config_root }}/{{ container_name }}'
+  register: path
+
+- name: Create directories if they do not exist
+  ansible.builtin.file:
+    path: '{{ service_config_root }}/{{ item }}'
+    owner: '{{ container_user }}'
+    group: '{{ container_user }}'
+    mode: '0755'
+    recurse: false
+    state: directory
+  loop:
+    - '{{ container_name }}'
+    - '{{ container_name }}/config'
+    - '{{ container_name }}/letsencrypt'
+  when: not path.stat.exists
+
+- name: Determine if traefik.yml exists
+  ansible.builtin.stat:
+    path: '{{ service_config_root }}/{{ container_name }}/traefik.yml'
+  register: traefik_config
+
+- name: Determine if dashboard.yml exists
+  ansible.builtin.stat:
+    path: '{{ service_config_root }}/{{ container_name }}/config/dashboard.yml'
+  register: dashboard_config
+
+- name: Create traefik config with permissions
+  ansible.builtin.template:
+    src: traefik.j2
+    dest: '{{ service_config_root }}/{{ container_name }}/traefik.yml'
+    owner: '{{ container_user }}'
+    group: '{{ container_user }}'
+    mode: '0644'
+  when: not traefik_config.stat.exists
+
+- name: Update traefik config
+  ansible.builtin.template:
+    src: traefik.j2
+    dest: '{{ service_config_root }}/{{ container_name }}/traefik.yml'
+  tags:
+    - skip_ansible_lint
+  register: traefik_config_update
+  when: traefik_config.stat.exists
+
+- name: Create dashboard config with permissions
+  ansible.builtin.template:
+    src: dashboard.j2
+    dest: '{{ service_config_root }}/{{ container_name }}/config/dashboard.yml'
+    owner: '{{ container_user }}'
+    group: '{{ container_user }}'
+    mode: '0644'
+  when: not dashboard_config.stat.exists
+
+- name: Update dashboard config
+  ansible.builtin.template:
+    src: dashboard.j2
+    dest: '{{ service_config_root }}/{{ container_name }}/config/dashboard.yml'
+  tags:
+    - skip_ansible_lint
+  when: dashboard_config.stat.exists
+
+- name: Create traefik container
+  become: true
+  become_user: '{{ container_user }}'
+  containers.podman.podman_container:
+    name: '{{ container_name }}'
+    image: docker.io/traefik:v3.1
+    image_strict: true
+    network: pasta:--map-gw
+    dns: '{{ secrets.networks.lan.base }}.15'
+    rm: true
+    userns: auto
+    publish:
+      - '8080:80'
+      - '8443:443'
+    volume:
+      - '{{ service_config_root }}/{{ container_name }}/traefik.yml:/etc/traefik/traefik.yml:ro,Z,U'
+      - '{{ service_config_root }}/{{ container_name }}/config:/etc/traefik.conf.d:ro,Z,U'
+      - '{{ service_config_root }}/{{ container_name }}/letsencrypt:/letsencrypt:Z,U'
+    env:
+      NETCUP_CUSTOMER_NUMBER: '{{ secrets.domain.customer_number }}'
+      NETCUP_API_KEY: '{{ secrets.domain.api_key }}'
+      NETCUP_API_PASSWORD: '{{ secrets.domain.api_password }}'
+      NETCUP_POLLING_INTERVAL: 60
+      NETCUP_PROPAGATION_TIMEOUT: 900
+    label:
+      io.containers.autoupdate: registry
+    # TODO: Switch to Quadlet as soon as podman is >= 4.4 on debian 12
+    #
+    # quadlet_options:
+    #   - 'AutoUpdate=registry'
+    #   - |
+    #     [Install]
+    #     WantedBy=default.target
+    # quadlet_filename: 'container-{{ container_name }}'
+    # state: quadlet
+    state: created
+  when: ansible_os_family == 'Debian'
+
+- name: Generate systemd unit file for traefik container
+  become: true
+  become_user: '{{ container_user }}'
+  containers.podman.podman_generate_systemd:
+    name: '{{ container_name }}'
+    new: true
+    no_header: true
+    restart_sec: 10
+    restart_policy: always
+    dest: '~/.config/systemd/user'
+  when: ansible_os_family == 'Debian'
+
+- name: Create traefik container Quadlet
+  become: true
+  become_user: '{{ container_user }}'
+  containers.podman.podman_container:
+    name: '{{ container_name }}'
+    image: docker.io/traefik:v3.1
+    image_strict: true
+    network: pasta:--map-gw
+    dns: '{{ secrets.networks.lan.base }}.15'
+    userns: auto
+    publish:
+      - '8080:80'
+      - '8443:443'
+    volume:
+      - '{{ service_config_root }}/{{ container_name }}/traefik.yml:/etc/traefik/traefik.yml:ro,Z,U'
+      - '{{ service_config_root }}/{{ container_name }}/config:/etc/traefik.conf.d:ro,Z,U'
+      - '{{ service_config_root }}/{{ container_name }}/letsencrypt:/letsencrypt:Z,U'
+    env:
+      NETCUP_CUSTOMER_NUMBER: '{{ secrets.domain.customer_number }}'
+      NETCUP_API_KEY: '{{ secrets.domain.api_key }}'
+      NETCUP_API_PASSWORD: '{{ secrets.domain.api_password }}'
+      NETCUP_POLLING_INTERVAL: 60
+      NETCUP_PROPAGATION_TIMEOUT: 900
+    quadlet_options:
+      - 'AutoUpdate=registry'
+      - |
+        [Install]
+        WantedBy=default.target
+    quadlet_filename: 'container-{{ container_name }}'
+    state: quadlet
+  register: quadlet
+  when: ansible_os_family == 'RedHat'
+
+- name: Set restart on change
+  ansible.builtin.set_fact:
+    container_state: '{{ (quadlet.changed | default(false)) | ternary("restarted", "started") }}'
+
+- name: Ensure traefik container is started and enabled
+  become: true
+  become_user: '{{ container_user }}'
+  ansible.builtin.systemd_service:
+    name: 'container-{{ container_name }}'
+    daemon_reload: true
+    state: '{{ container_state }}'
+    scope: user
+    enabled: true
