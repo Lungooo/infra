@@ -7,7 +7,7 @@
   loop: '{{ secrets.users | dict2items }}'
   when:
     - item.value.gid | int != 100
-    - item.key | string in services
+    - item.value.service | string in services
 
 - name: Create users for services
   ansible.builtin.user:
@@ -18,11 +18,11 @@
     shell: /bin/nologin
     state: present
   loop: '{{ secrets.users | dict2items }}'
-  when: item.key | string in services
+  when: item.value.service | string in services
 
 - name: Enable lingering for users
   ansible.builtin.command:
     cmd: 'loginctl enable-linger {{ item.value.name }}'
     creates: '/var/lib/systemd/linger/{{ item.value.name }}'
   loop: '{{ secrets.users | dict2items }}'
-  when: item.key | string in services
+  when: item.value.service | string in services

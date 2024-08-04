@@ -1,5 +1,7 @@
 ---
 - name: Ensure podman is installed
   ansible.builtin.package:
-    name: podman
+    name:
+      - podman
+      - passt
     state: present

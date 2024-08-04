@@ -1,0 +1,92 @@
+http:
+  routers:
+    api:
+      rule: 'Host(`{{ domain }}`)'
+      service: api@internal
+      entrypoints: 'websecure'
+{% if 'actual' in services %}
+    actual:
+      rule: 'Host(`actual-budget.{{ domain }}`)'
+      service: actual
+      entrypoints: 'websecure'
+{% endif %}
+{% if 'paperless' in services %}
+    paperless:
+      rule: 'Host(`paperless-ngx.{{ domain }}`)'
+      service: paperless
+      entrypoints: 'websecure'
+{% endif %}
+{% if 'media' in services %}
+    jdownloader2:
+      rule: 'Host(`jdownloader2.{{ domain }}`)'
+      service: jdownloader2
+      entrypoints: 'websecure'
+    jellyfin:
+      rule: 'Host(`jellyfin.{{ domain }}`)'
+      service: jellyfin
+      entrypoints: 'websecure'
+    jellyseerr:
+      rule: 'Host(`jellyseerr.{{ domain }}`)'
+      service: jellyseerr
+      entrypoints: 'websecure'
+    prowlarr:
+      rule: 'Host(`prowlarr.{{ domain }}`)'
+      service: prowlarr
+      entrypoints: 'websecure'
+    sabnzbd:
+      rule: 'Host(`sabnzbd.{{ domain }}`)'
+      service: sabnzbd
+      entrypoints: 'websecure'
+    sonarr:
+      rule: 'Host(`sonarr.{{ domain }}`)'
+      service: sonarr
+      entrypoints: 'websecure'
+    radarr:
+      rule: 'Host(`radarr.{{ domain }}`)'
+      service: radarr
+      entrypoints: 'websecure'
+{% endif %}
+
+  services:
+{% if 'actual' in services %}
+    actual:
+      loadBalancer:
+        servers:
+          - url: http://{{ secrets.networks.lan.base }}.1:5006/
+{% endif %}
+{% if 'paperless' in services %}
+    paperless:
+      loadBalancer:
+        servers:
+          - url: http://{{ secrets.networks.lan.base }}.1:8000/
+{% endif %}
+{% if 'media' in services %}
+    jdownloader2:
+      loadBalancer:
+        servers:
+          - url: http://{{ secrets.networks.lan.base }}.1:5800/
+    jellyfin:
+      loadBalancer:
+        servers:
+          - url: http://{{ secrets.networks.lan.base }}.1:8096/
+    jellyseerr:
+      loadBalancer:
+        servers:
+          - url: http://{{ secrets.networks.lan.base }}.1:5055/
+    prowlarr:
+      loadBalancer:
+        servers:
+          - url: http://{{ secrets.networks.lan.base }}.1:9696/
+    sabnzbd:
+      loadBalancer:
+        servers:
+          - url: http://{{ secrets.networks.lan.base }}.1:8180/
+    sonarr:
+      loadBalancer:
+        servers:
+          - url: http://{{ secrets.networks.lan.base }}.1:8989/
+    radarr:
+      loadBalancer:
+        servers:
+          - url: http://{{ secrets.networks.lan.base }}.1:7878/
+{% endif %}
