@@ -78,6 +78,20 @@
     - skip_ansible_lint
   when: routers_config.stat.exists
 
+- name: Create podman secrets
+  become: true
+  become_user: '{{ container_user }}'
+  containers.podman.podman_secret:
+    name: '{{ item.name }}'
+    data: '{{ item.data }}'
+    state: present
+  loop:
+    - { name: 'netcup-customer-number', data: '{{ secrets.domain.customer_number }}' }
+    - { name: 'netcup-api-key', data: '{{ secrets.domain.api_key }}' }
+    - { name: 'netcup-api-password', data: '{{ secrets.domain.api_password }}' }
+  loop_control:
+    label: '{{ item.name }}'
+
 - name: Create traefik container
   become: true
   become_user: '{{ container_user }}'
@@ -97,11 +111,12 @@
       - '{{ service_config_root }}/{{ container_name }}/routers.yml:/etc/traefik/routers.yml:ro,Z,U'
       - '{{ service_config_root }}/{{ container_name }}/acme.json:/letsencrypt/acme.json:Z,U'
     env:
-      NETCUP_CUSTOMER_NUMBER: '{{ secrets.domain.customer_number }}'
-      NETCUP_API_KEY: '{{ secrets.domain.api_key }}'
-      NETCUP_API_PASSWORD: '{{ secrets.domain.api_password }}'
       NETCUP_POLLING_INTERVAL: 60
       NETCUP_PROPAGATION_TIMEOUT: 900
+    secrets:
+      - netcup-customer-number,type=env,target=NETCUP_CUSTOMER_NUMBER
+      - netcup-api-key,type=env,target=NETCUP_API_KEY
+      - netcup-api-password,type=env,target=NETCUP_API_PASSWORD
     label:
       io.containers.autoupdate: registry
     # TODO: Switch to Quadlet as soon as podman is >= 4.4 on debian 12
@@ -146,11 +161,12 @@
       - '{{ service_config_root }}/{{ container_name }}/routers.yml:/etc/traefik/routers.yml:ro,Z,U'
       - '{{ service_config_root }}/{{ container_name }}/acme.json:/letsencrypt/acme.json:Z,U'
     env:
-      NETCUP_CUSTOMER_NUMBER: '{{ secrets.domain.customer_number }}'
-      NETCUP_API_KEY: '{{ secrets.domain.api_key }}'
-      NETCUP_API_PASSWORD: '{{ secrets.domain.api_password }}'
       NETCUP_POLLING_INTERVAL: 60
       NETCUP_PROPAGATION_TIMEOUT: 900
+    secrets:
+      - netcup-customer-number,type=env,target=NETCUP_CUSTOMER_NUMBER
+      - netcup-api-key,type=env,target=NETCUP_API_KEY
+      - netcup-api-password,type=env,target=NETCUP_API_PASSWORD
     quadlet_options:
       - 'AutoUpdate=registry'
       - |
