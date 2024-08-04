@@ -179,7 +179,7 @@
 
 - name: Set restart on change
   ansible.builtin.set_fact:
-    container_state: '{{ (quadlet.changed | default(false)) | ternary("restarted", "started") }}'
+    container_state: '{{ ((quadlet.changed | default(false)) or traefik_config_update.changed) | ternary("restarted", "started") }}'
 
 - name: Ensure traefik container is started and enabled
   become: true
