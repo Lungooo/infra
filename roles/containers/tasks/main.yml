@@ -9,11 +9,11 @@
 
 - ansible.builtin.import_tasks: users.yml
 
-- ansible.builtin.include_tasks: traefik.yml
-  when: '"traefik" in services'
-
 - ansible.builtin.include_tasks: actual.yml
   when: '"actual" in services'
 
 - ansible.builtin.include_tasks: jellyseerr.yml
-  when: '"jellyseerr" in services'
+  when: '"media" in services'
+
+- ansible.builtin.include_tasks: traefik.yml
+  when: '"traefik" in services'

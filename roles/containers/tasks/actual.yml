@@ -96,25 +96,3 @@
     state: '{{ container_state }}'
     scope: user
     enabled: true
-
-- name: Determine if routing exists for {{ container_name }}
-  ansible.builtin.stat:
-    path: '{{ service_config_root }}/traefik/config/{{ container_name }}.yml'
-  register: routing
-
-- name: Create routing config with permissions for {{ container_name }}
-  ansible.builtin.template:
-    src: '{{ container_name }}.j2'
-    dest: '{{ service_config_root }}/traefik/config/{{ container_name }}.yml'
-    owner: traefik
-    group: traefik
-    mode: '0644'
-  when: not routing.stat.exists
-
-- name: Update routing config for {{ container_name }}
-  ansible.builtin.template:
-    src: '{{ container_name }}.j2'
-    dest: '{{ service_config_root }}/traefik/config/{{ container_name }}.yml'
-  tags:
-    - skip_ansible_lint
-  when: routing.stat.exists

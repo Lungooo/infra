@@ -11,27 +11,37 @@
 
 - name: Create directories if they do not exist
   ansible.builtin.file:
-    path: '{{ service_config_root }}/{{ item }}'
+    path: '{{ service_config_root }}/{{ container_name }}'
     owner: '{{ container_user }}'
     group: '{{ container_user }}'
     mode: '0755'
     recurse: false
     state: directory
-  loop:
-    - '{{ container_name }}'
-    - '{{ container_name }}/config'
-    - '{{ container_name }}/letsencrypt'
   when: not path.stat.exists
+
+- name: Determine if acme.json exists
+  ansible.builtin.stat:
+    path: '{{ service_config_root }}/{{ container_name }}/acme.json'
+  register: acme
+
+- name: Touch acme.json if it does not exist
+  ansible.builtin.file:
+    path: '{{ service_config_root }}/{{ container_name }}/acme.json'
+    owner: '{{ container_user }}'
+    group: '{{ container_user }}'
+    mode: '0600'
+    state: touch
+  when: not acme.stat.exists
 
 - name: Determine if traefik.yml exists
   ansible.builtin.stat:
     path: '{{ service_config_root }}/{{ container_name }}/traefik.yml'
   register: traefik_config
 
-- name: Determine if dashboard.yml exists
+- name: Determine if routers.yml exists
   ansible.builtin.stat:
-    path: '{{ service_config_root }}/{{ container_name }}/config/dashboard.yml'
-  register: dashboard_config
+    path: '{{ service_config_root }}/{{ container_name }}/routers.yml'
+  register: routers_config
 
 - name: Create traefik config with permissions
   ansible.builtin.template:
@@ -53,20 +63,20 @@
 
 - name: Create dashboard config with permissions
   ansible.builtin.template:
-    src: dashboard.j2
-    dest: '{{ service_config_root }}/{{ container_name }}/config/dashboard.yml'
+    src: routers.j2
+    dest: '{{ service_config_root }}/{{ container_name }}/routers.yml'
     owner: '{{ container_user }}'
     group: '{{ container_user }}'
     mode: '0644'
-  when: not dashboard_config.stat.exists
+  when: not routers_config.stat.exists
 
 - name: Update dashboard config
   ansible.builtin.template:
-    src: dashboard.j2
-    dest: '{{ service_config_root }}/{{ container_name }}/config/dashboard.yml'
+    src: routers.j2
+    dest: '{{ service_config_root }}/{{ container_name }}/routers.yml'
   tags:
     - skip_ansible_lint
-  when: dashboard_config.stat.exists
+  when: routers_config.stat.exists
 
 - name: Create traefik container
   become: true
@@ -84,8 +94,8 @@
       - '8443:443'
     volume:
       - '{{ service_config_root }}/{{ container_name }}/traefik.yml:/etc/traefik/traefik.yml:ro,Z,U'
-      - '{{ service_config_root }}/{{ container_name }}/config:/etc/traefik.conf.d:ro,Z,U'
-      - '{{ service_config_root }}/{{ container_name }}/letsencrypt:/letsencrypt:Z,U'
+      - '{{ service_config_root }}/{{ container_name }}/routers.yml:/etc/traefik/routers.yml:ro,Z,U'
+      - '{{ service_config_root }}/{{ container_name }}/acme.json:/letsencrypt/acme.json:Z,U'
     env:
       NETCUP_CUSTOMER_NUMBER: '{{ secrets.domain.customer_number }}'
       NETCUP_API_KEY: '{{ secrets.domain.api_key }}'
@@ -133,8 +143,8 @@
       - '8443:443'
     volume:
       - '{{ service_config_root }}/{{ container_name }}/traefik.yml:/etc/traefik/traefik.yml:ro,Z,U'
-      - '{{ service_config_root }}/{{ container_name }}/config:/etc/traefik.conf.d:ro,Z,U'
-      - '{{ service_config_root }}/{{ container_name }}/letsencrypt:/letsencrypt:Z,U'
+      - '{{ service_config_root }}/{{ container_name }}/routers.yml:/etc/traefik/routers.yml:ro,Z,U'
+      - '{{ service_config_root }}/{{ container_name }}/acme.json:/letsencrypt/acme.json:Z,U'
     env:
       NETCUP_CUSTOMER_NUMBER: '{{ secrets.domain.customer_number }}'
       NETCUP_API_KEY: '{{ secrets.domain.api_key }}'
