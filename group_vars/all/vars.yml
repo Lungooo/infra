@@ -6,6 +6,7 @@ service_config_root: /opt/services
 
 services:
   - actual
+  - paperless
   - traefik
 
 #

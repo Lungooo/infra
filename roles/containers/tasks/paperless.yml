@@ -1,0 +1,67 @@
+---
+- name: Set pod variables
+  ansible.builtin.set_fact:
+    pod_user: '{{ secrets.users.paperless.name }}'
+    pod_name: paperless
+
+- name: Determine if directories needed by paperless exist
+  ansible.builtin.stat:
+    path: '{{ service_config_root }}/{{ pod_name }}'
+  register: path
+
+- name: Create directories if they do not exist
+  ansible.builtin.file:
+    path: '{{ service_config_root }}/{{ item }}'
+    owner: '{{ pod_user }}'
+    group: 100
+    mode: '0755'
+    recurse: false
+    state: directory
+  loop:
+    - '{{ pod_name }}'
+    - '{{ pod_name }}/data'
+    - '{{ pod_name }}/db'
+    - '{{ pod_name }}/redis'
+  when: not path.stat.exists
+
+- name: Create paperless webserver Quadlet
+  become: true
+  become_user: '{{ pod_user }}'
+  containers.podman.podman_container:
+    name: '{{ pod_name }}-webserver'
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    image_strict: true
+    userns: auto
+    publish:
+      - '127.0.0.1:8000:8000'
+    quadlet_options:
+      - 'AutoUpdate=registry'
+      - |
+        [Unit]
+        Requires=container-{{ pod_name }}-db.service
+        After=container-{{ pod_name }}-db.service
+      - |
+        [Install]
+        WantedBy=default.target
+    quadlet_filename: 'container-{{ pod_name }}-webserver'
+    state: quadlet
+  register: quadlet
+  when: ansible_os_family == 'RedHat'
+
+- name: Create paperless db Quadlet
+  become: true
+  become_user: '{{ pod_user }}'
+  containers.podman.podman_container:
+    name: '{{ pod_name }}-db'
+    image: docker.io/library/postgres:15
+    image_strict: true
+    userns: auto
+    quadlet_options:
+      - 'AutoUpdate=registry'
+      - |
+        [Install]
+        WantedBy=default.target
+    quadlet_filename: 'container-{{ pod_name }}-db'
+    state: quadlet
+  register: quadlet
+  when: ansible_os_family == 'RedHat'
