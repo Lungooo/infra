@@ -6,7 +6,7 @@
 
 - name: Determine if directories needed by jellyseerr exist
   ansible.builtin.stat:
-    path: '{{ service_config_root }}/{{ container_name }}/config'
+    path: '{{ service_config_root }}/{{ container_name }}'
   register: path
 
 - name: Create directories if they do not exist

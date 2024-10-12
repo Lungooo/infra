@@ -6,7 +6,7 @@
 
 - name: Determine if directories needed by actual exist
   ansible.builtin.stat:
-    path: '{{ service_config_root }}/{{ container_name }}/data'
+    path: '{{ service_config_root }}/{{ container_name }}'
   register: path
 
 - name: Create directories if they do not exist
