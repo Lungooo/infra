@@ -10,3 +10,5 @@ case "$OSTYPE" in
   ;;
   darwin*)
     /usr/bin/security find-generic-password -w -a "$FOLDER" -l "$LABEL"
+  ;;
+esac
