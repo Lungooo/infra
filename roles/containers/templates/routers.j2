@@ -52,41 +52,41 @@ http:
     actual:
       loadBalancer:
         servers:
-          - url: http://{{ secrets.networks.lan.base }}.1:5006/
+          - url: http://{{ secrets.networks.servers.base }}.1:5006/
 {% endif %}
 {% if 'paperless' in services %}
     paperless:
       loadBalancer:
         servers:
-          - url: http://{{ secrets.networks.lan.base }}.1:8000/
+          - url: http://{{ secrets.networks.servers.base }}.1:8000/
 {% endif %}
 {% if 'media' in services %}
     jdownloader2:
       loadBalancer:
         servers:
-          - url: http://{{ secrets.networks.lan.base }}.1:5800/
+          - url: http://{{ secrets.networks.servers.base }}.1:5800/
     jellyfin:
       loadBalancer:
         servers:
-          - url: http://{{ secrets.networks.lan.base }}.1:8096/
+          - url: http://{{ secrets.networks.servers.base }}.1:8096/
     jellyseerr:
       loadBalancer:
         servers:
-          - url: http://{{ secrets.networks.lan.base }}.1:5055/
+          - url: http://{{ secrets.networks.servers.base }}.1:5055/
     prowlarr:
       loadBalancer:
         servers:
-          - url: http://{{ secrets.networks.lan.base }}.1:9696/
+          - url: http://{{ secrets.networks.servers.base }}.1:9696/
     sabnzbd:
       loadBalancer:
         servers:
-          - url: http://{{ secrets.networks.lan.base }}.1:8180/
+          - url: http://{{ secrets.networks.servers.base }}.1:8180/
     sonarr:
       loadBalancer:
         servers:
-          - url: http://{{ secrets.networks.lan.base }}.1:8989/
+          - url: http://{{ secrets.networks.servers.base }}.1:8989/
     radarr:
       loadBalancer:
         servers:
-          - url: http://{{ secrets.networks.lan.base }}.1:7878/
+          - url: http://{{ secrets.networks.servers.base }}.1:7878/
 {% endif %}

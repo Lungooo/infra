@@ -18,7 +18,7 @@
 
 - name: Mount nfs shares to directories
   ansible.posix.mount:
-    src: '{{ secrets.networks.lan.base }}.10:/volume1/{{ item }}'
+    src: '{{ secrets.networks.servers.base }}.10:/volume1/{{ item }}'
     path: '/nfs/{{ item }}'
     opts: defaults
     state: mounted

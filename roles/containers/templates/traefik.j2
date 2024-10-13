@@ -10,6 +10,10 @@ entryPoints:
 
   websecure:
     address: :443
+    forwardedHeaders:
+      trustedIPs:
+        - "127.0.0.1/32"
+        - "{{ secrets.networks.servers.base }}.80/32"
     http:
       tls:
         certResolver: netcup
