@@ -78,7 +78,6 @@
       - |
         [Install]
         WantedBy=default.target
-    quadlet_filename: 'container-{{ container_name }}'
     state: quadlet
   register: quadlet
   when: ansible_os_family == 'RedHat'
@@ -91,8 +90,18 @@
   become: true
   become_user: '{{ container_user }}'
   ansible.builtin.systemd_service:
-    name: 'container-{{ container_name }}'
+    name: '{{ container_name }}'
     daemon_reload: true
     state: '{{ container_state }}'
+    scope: user
+    enabled: true
+
+- name: Ensure podman auto-update timer is enabled
+  become: true
+  become_user: '{{ container_user }}'
+  ansible.builtin.systemd_service:
+    name: 'podman-auto-update.timer'
+    daemon_reload: true
+    state: started
     scope: user
     enabled: true

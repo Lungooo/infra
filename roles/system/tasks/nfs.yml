@@ -16,11 +16,22 @@
     mode: '0755'
   loop: '{{ secrets.shares }}'
 
-- name: Mount nfs shares to directories
+- name: Mount nfs shares to directories (testing)
   ansible.posix.mount:
-    src: '{{ secrets.networks.servers.base }}.10:/volume1/{{ item }}'
+    src: '{{ secrets.networks.storage.base }}.10:/volume1/{{ item }}_testing'
     path: '/nfs/{{ item }}'
     opts: defaults
     state: mounted
     fstype: nfs
   loop: '{{ secrets.shares }}'
+  when: group_names[0] == 'testing'
+
+- name: Mount nfs shares to directories (production)
+  ansible.posix.mount:
+    src: '{{ secrets.networks.storage.base }}.10:/volume1/{{ item }}'
+    path: '/nfs/{{ item }}'
+    opts: defaults
+    state: mounted
+    fstype: nfs
+  loop: '{{ secrets.shares }}'
+  when: group_names[0] == 'production'

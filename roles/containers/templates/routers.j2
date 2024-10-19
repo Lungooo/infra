@@ -4,6 +4,10 @@ http:
       rule: 'Host(`{{ domain }}`)'
       service: api@internal
       entrypoints: 'websecure'
+    whoami:
+      rule: 'Host(`whoami.{{ domain }}`)'
+      service: whoami
+      entrypoints: 'websecure'
 {% if 'actual' in services %}
     actual:
       rule: 'Host(`actual-budget.{{ domain }}`)'
@@ -48,6 +52,10 @@ http:
 {% endif %}
 
   services:
+    whoami:
+      loadBalancer:
+        servers:
+          - url: http://{{ secrets.networks.servers.base }}.1:2000/
 {% if 'actual' in services %}
     actual:
       loadBalancer:

@@ -24,28 +24,35 @@
     - '{{ pod_name }}/redis'
   when: not path.stat.exists
 
-- name: Create paperless webserver Quadlet
+- name: Create paperless pod
   become: true
   become_user: '{{ pod_user }}'
-  containers.podman.podman_container:
-    name: '{{ pod_name }}-webserver'
-    image: ghcr.io/paperless-ngx/paperless-ngx:latest
-    image_strict: true
+  containers.podman.podman_pod:
+    name: '{{ pod_name }}'
     userns: auto
     publish:
       - '127.0.0.1:8000:8000'
+    state: quadlet
+  when: ansible_os_family == 'RedHat'
+
+- name: Create paperless redis Quadlet
+  become: true
+  become_user: '{{ pod_user }}'
+  containers.podman.podman_container:
+    name: '{{ pod_name }}-redis'
+    image: docker.io/library/redis:7
+    image_strict: true
+    userns: auto
+    volume:
+      - '{{ service_config_root }}/{{ pod_name }}/redis:/data:Z,U'
+    pod: '{{ pod_name }}.pod'
     quadlet_options:
       - 'AutoUpdate=registry'
       - |
-        [Unit]
-        Requires=container-{{ pod_name }}-db.service
-        After=container-{{ pod_name }}-db.service
-      - |
         [Install]
         WantedBy=default.target
-    quadlet_filename: 'container-{{ pod_name }}-webserver'
     state: quadlet
-  register: quadlet
+  register: quadlet_redis
   when: ansible_os_family == 'RedHat'
 
 - name: Create paperless db Quadlet
@@ -53,15 +60,125 @@
   become_user: '{{ pod_user }}'
   containers.podman.podman_container:
     name: '{{ pod_name }}-db'
-    image: docker.io/library/postgres:15
+    image: docker.io/library/postgres:16
     image_strict: true
     userns: auto
+    volume:
+      - '{{ service_config_root }}/{{ pod_name }}/db:/var/lib/postgresql/data:Z,U'
+    env:
+      POSTGRES_DB: paperless
+      POSTGRES_USER: paperless
+      POSTGRES_PASSWORD: paperless
+    pod: '{{ pod_name }}.pod'
     quadlet_options:
       - 'AutoUpdate=registry'
       - |
         [Install]
         WantedBy=default.target
-    quadlet_filename: 'container-{{ pod_name }}-db'
     state: quadlet
-  register: quadlet
+  register: quadlet_db
   when: ansible_os_family == 'RedHat'
+
+- name: Create paperless webserver Quadlet
+  become: true
+  become_user: '{{ pod_user }}'
+  containers.podman.podman_container:
+    name: '{{ pod_name }}-webserver'
+    image: ghcr.io/paperless-ngx/paperless-ngx
+    image_strict: true
+    userns: auto
+    volume:
+      - '{{ service_config_root }}/{{ pod_name }}/data:/usr/src/paperless/data:Z,U'
+      - '/nfs/paperless/media:/usr/src/paperless/media:Z,U'
+      - '/nfs/paperless/export:/usr/src/paperless/export:Z,U'
+      - '/nfs/paperless/consume:/usr/src/paperless/consume:Z,U'
+    env:
+      USERMAP_UID: 0
+      USERMAP_GID: 0
+      PAPERLESS_URL: 'https://paperless-ngx.{{ domain }}'
+      PAPERLESS_TIME_ZONE: '{{ timezone }}'
+      PAPERLESS_OCR_LANGUAGE: deu
+      PAPERLESS_REDIS: 'redis://{{ pod_name }}-redis:6379'
+      PAPERLESS_DBHOST: '{{ pod_name }}-db'
+      PAPERLESS_TIKA_ENABLED: 1
+      PAPERLESS_TIKA_GOTENBERG_ENDPOINT: 'http://{{ pod_name }}-gotenberg:3000'
+      PAPERLESS_TIKA_ENDPOINT: 'http://{{ pod_name }}-tika:9998'
+      PAPERLESS_FILENAME_FORMAT: '{document_type}/{correspondent}/{created_year}/{created_year}-{created_month}-{created_day} - {title} - [{document_type} {correspondent} {tag_list} {asn}]'
+      PAPERLESS_FILENAME_FORMAT_REMOVE_NONE: 'True'
+    pod: '{{ pod_name }}.pod'
+    quadlet_options:
+      - 'AutoUpdate=registry'
+      - |
+        [Unit]
+        Requires={{ pod_name }}-db.service {{ pod_name }}-redis.service {{ pod_name }}-gotenberg.service {{ pod_name }}-tika.service
+        After={{ pod_name }}-db.service {{ pod_name }}-redis.service {{ pod_name }}-gotenberg.service {{ pod_name }}-tika.service
+      - |
+        [Install]
+        WantedBy=default.target
+    state: quadlet
+  register: quadlet_webserver
+  when: ansible_os_family == 'RedHat'
+
+- name: Create paperless gotenberg Quadlet
+  become: true
+  become_user: '{{ pod_user }}'
+  containers.podman.podman_container:
+    name: '{{ pod_name }}-gotenberg'
+    image: docker.io/gotenberg/gotenberg:8.7
+    image_strict: true
+    userns: auto
+    command:
+      - 'gotenberg'
+      - '--chromium-disable-javascript=true'
+      - '--chromium-allow-list=file:///tmp/.*'
+    pod: '{{ pod_name }}.pod'
+    quadlet_options:
+      - 'AutoUpdate=registry'
+      - |
+        [Install]
+        WantedBy=default.target
+    state: quadlet
+  register: quadlet_gotenberg
+  when: ansible_os_family == 'RedHat'
+
+- name: Create paperless tika Quadlet
+  become: true
+  become_user: '{{ pod_user }}'
+  containers.podman.podman_container:
+    name: '{{ pod_name }}-tika'
+    image: docker.io/apache/tika
+    image_strict: true
+    userns: auto
+    pod: '{{ pod_name }}.pod'
+    quadlet_options:
+      - 'AutoUpdate=registry'
+      - |
+        [Install]
+        WantedBy=default.target
+    state: quadlet
+  register: quadlet_tika
+  when: ansible_os_family == 'RedHat'
+
+- name: Set restart on change
+  ansible.builtin.set_fact:
+    pod_state: '{{ ((quadlet_redis.changed | default(false)) or (quadlet_db.changed | default(false)) or (quadlet_webserver.changed | default(false)) or (quadlet_gotenberg.changed | default(false)) or (quadlet_tika.changed | default(false))) | ternary("restarted", "started") }}'
+
+- name: Ensure paperless pod is started and enabled
+  become: true
+  become_user: '{{ pod_user }}'
+  ansible.builtin.systemd:
+    name: '{{ pod_name }}-pod'
+    daemon_reload: true
+    state: '{{ pod_state }}'
+    scope: user
+    enabled: true
+
+- name: Ensure podman auto-update timer is enabled
+  become: true
+  become_user: '{{ pod_user }}'
+  ansible.builtin.systemd_service:
+    name: 'podman-auto-update.timer'
+    daemon_reload: true
+    state: started
+    scope: user
+    enabled: true
