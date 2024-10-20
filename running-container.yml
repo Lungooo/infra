@@ -10,7 +10,7 @@
       loop: '{{ secrets.users | dict2items }}'
       vars:
         users: []
-      when: 'item.key | string in services'
+      when: 'item.value.service | string in services'
 
     - name: Get all running containers
       ansible.builtin.command: 'systemd-run --machine={{ item }}@ --quiet --user --collect --pipe --wait podman container ps --all'

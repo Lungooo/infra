@@ -1,0 +1,91 @@
+---
+- name: Set container variables
+  ansible.builtin.set_fact:
+    container_user: '{{ secrets.users.media.name }}'
+    container_name: sabnzbd
+
+- name: Determine if directories needed by sabnzbd exist
+  ansible.builtin.stat:
+    path: '{{ service_config_root }}/{{ container_name }}'
+  register: path
+
+- name: Create directories if they do not exist
+  ansible.builtin.file:
+    path: '{{ service_config_root }}/{{ item }}'
+    owner: '{{ container_user }}'
+    group: '{{ secrets.users.media.gid }}'
+    mode: '0755'
+    recurse: false
+    state: directory
+  loop:
+    - '{{ container_name }}'
+    - '{{ container_name }}/config'
+  when: not path.stat.exists
+
+- name: Create sabnzbd container Quadlet
+  become: true
+  become_user: '{{ container_user }}'
+  containers.podman.podman_container:
+    name: '{{ container_name }}'
+    image: ghcr.io/binhex/arch-sabnzbdvpn
+    image_strict: true
+    userns: 'auto:uidmapping={{ secrets.users.media.uid }}:0:1,gidmapping={{ secrets.users.media.gid }}:0:1'
+    privileged: true
+    publish:
+      - '127.0.0.1:5800:5800'
+      - '127.0.0.1:8180:8080'
+      - '127.0.0.1:8118:8118'
+      - '127.0.0.1:9118:9118'
+      - '127.0.0.1:9696:9696'
+    volume:
+      - '{{ service_config_root }}/{{ container_name }}/config:/config:Z'
+      - '/nfs/data/03_media:/nfs/data/03_media'
+    env:
+      UMASK: '022'
+      PUID: '{{ secrets.users.media.uid }}'
+      PGID: '{{ secrets.users.media.gid }}'
+      TZ: '{{ timezone }}'
+      VPN_ENABLED: 'yes'
+      VPN_PROV: 'custom'
+      VPN_CLIENT: 'wireguard'
+      ENABLE_PRIVOXY: 'yes'
+      ENABLE_SOCKS: 'yes'
+      LAN_NETWORK: '{{ secrets.networks.enddevices.cidr }},{{ secrets.networks.servers.cidr }},{{ secrets.networks.tailnet.secure.cidr }},{{ secrets.networks.tailnet.guest.cidr }}'
+      NAME_SERVERS: '1.1.1.1,1.0.0.1'
+      VPN_INPUT_PORTS: '5800,9696'
+      VPN_OUTPUT_PORTS: '443'
+      DEBUG: 'false'
+    sysctl:
+      net.ipv4.conf.all.src_valid_mark: 1
+    quadlet_options:
+      - 'AutoUpdate=registry'
+      - |
+        [Install]
+        WantedBy=default.target
+    state: quadlet
+  register: quadlet
+  when: ansible_os_family == 'RedHat'
+
+- name: Set restart on change
+  ansible.builtin.set_fact:
+    container_state: '{{ (quadlet.changed | default(false)) | ternary("restarted", "started") }}'
+
+- name: Ensure sabnzbd container is started and enabled
+  become: true
+  become_user: '{{ container_user }}'
+  ansible.builtin.systemd_service:
+    name: '{{ container_name }}'
+    daemon_reload: true
+    state: '{{ container_state }}'
+    scope: user
+    enabled: true
+
+- name: Ensure podman auto-update timer is enabled
+  become: true
+  become_user: '{{ container_user }}'
+  ansible.builtin.systemd_service:
+    name: 'podman-auto-update.timer'
+    daemon_reload: true
+    state: started
+    scope: user
+    enabled: true

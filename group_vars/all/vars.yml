@@ -4,11 +4,6 @@ timezone: Europe/Berlin
 
 service_config_root: /opt/services
 
-services:
-  - actual
-  - paperless
-  - traefik
-
 #
 # NFS
 #

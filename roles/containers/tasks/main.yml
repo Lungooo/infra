@@ -15,6 +15,9 @@
 - ansible.builtin.include_tasks: jellyseerr.yml
   when: '"media" in services'
 
+- ansible.builtin.include_tasks: sabnzbd.yml
+  when: '"media" in services'
+
 - ansible.builtin.include_tasks: paperless.yml
   when: '"paperless" in services'
 

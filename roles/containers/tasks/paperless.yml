@@ -13,7 +13,7 @@
   ansible.builtin.file:
     path: '{{ service_config_root }}/{{ item }}'
     owner: '{{ pod_user }}'
-    group: 100
+    group: '{{ secrets.users.paperless.gid }}'
     mode: '0755'
     recurse: false
     state: directory
@@ -89,9 +89,9 @@
     userns: auto
     volume:
       - '{{ service_config_root }}/{{ pod_name }}/data:/usr/src/paperless/data:Z,U'
-      - '/nfs/paperless/media:/usr/src/paperless/media:Z,U'
-      - '/nfs/paperless/export:/usr/src/paperless/export:Z,U'
-      - '/nfs/paperless/consume:/usr/src/paperless/consume:Z,U'
+      - '/nfs/paperless/media:/usr/src/paperless/media'
+      - '/nfs/paperless/export:/usr/src/paperless/export'
+      - '/nfs/paperless/consume:/usr/src/paperless/consume'
     env:
       USERMAP_UID: 0
       USERMAP_GID: 0
